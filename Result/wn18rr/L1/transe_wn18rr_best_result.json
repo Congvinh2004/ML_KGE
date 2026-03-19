@@ -1,0 +1,23 @@
+{
+  "Run": 1,
+  "MRR": 0.19659194350242615,
+  "MR": 5009.4296875,
+  "Hits@10": 0.45628589391708374,
+  "Hits@3": 0.35768985748291016,
+  "Hits@1": 0.014039565809071064,
+  "timestamp": "2026-01-01T20:46:23.280147",
+  "epoch": 2000,
+  "config": {
+    "dim": 100,
+    "margin": 6.0,
+    "train_times": 2000,
+    "alpha": 0.1,
+    "nbatches": 50,
+    "neg_ent": 5,
+    "threads": 4,
+    "p_norm": 1,
+    "norm_flag": true,
+    "type_constrain": false,
+    "save_steps": 50
+  }
+}

@@ -1,0 +1,26 @@
+============================================================
+TransE Results on WN18RR
+============================================================
+Train Run: 2
+Dataset: WN18RR
+
+Configuration:
+   dim: 150
+   margin: 4.5
+   train_times: 2500
+   alpha: 0.15
+   nbatches: 50
+   neg_ent: 10
+   threads: 4
+   p_norm: 1
+   norm_flag: True
+   type_constrain: False
+   save_steps: 50
+
+Final Results:
+   MRR: 0.1830
+   MR: 6520.1
+   Hits@10: 0.4220
+   Hits@3: 0.3521
+   Hits@1: 0.0013
+============================================================

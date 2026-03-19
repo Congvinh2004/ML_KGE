@@ -1,0 +1,2 @@
+Run,MRR,MR,Hits@10,Hits@3,Hits@1,Margin,Epochs,LR,Neg_ent,Dim
+1,0.1966,5009.4,0.4563,0.3577,0.0140,6.0,2000,0.1,5,100

@@ -1,0 +1,29 @@
+============================================================
+TransT (TransE + Triple Trustiness) Results
+============================================================
+Train Run: 1
+Dataset: FB15K237
+
+Configuration:
+   dim: 200
+   margin: 5.0
+   train_times: 1000
+   alpha: 1.0
+   nbatches: 100
+   neg_ent: 10
+   threads: 0
+   p_norm: 1
+   norm_flag: True
+   type_constrain: False
+   use_trustiness: True
+   alpha_trust: 0.5
+   beta_trust: 0.5
+   use_cross_entropy: True
+
+Results:
+   MRR: 0.2528
+   MR: 193.6
+   Hits@10: 0.4143
+   Hits@3: 0.2738
+   Hits@1: 0.1712
+============================================================
