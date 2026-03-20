@@ -182,8 +182,8 @@ class Trainer(object):
 		os.makedirs(self.checkpoint_dir, exist_ok=True)
 		
 		# Lưu model
-		# Nếu có save_model (model thực tế như transe, transt), lưu nó
-		# Nếu không, lưu self.model (wrapper như NegativeSampling)
+		# Nếu có save_model (model thực tế), lưu nó;
+		# nếu không thì lưu self.model (wrapper như NegativeSampling).
 		model_to_save = self.save_model if self.save_model is not None else self.model
 		
 		# Kiểm tra xem model có method save_checkpoint không

@@ -267,9 +267,12 @@ class PyTorchTrainDataLoader(DataLoader):
 		self.ent_file = ent_file
 		self.rel_file = rel_file
 		if in_path != None:
-			self.tri_file = in_path + "train2id.txt"
-			self.ent_file = in_path + "entity2id.txt"
-			self.rel_file = in_path + "relation2id.txt"
+			if self.tri_file is None:
+				self.tri_file = in_path + "train2id.txt"
+			if self.ent_file is None:
+				self.ent_file = in_path + "entity2id.txt"
+			if self.rel_file is None:
+				self.rel_file = in_path + "relation2id.txt"
 
 		dataset = self.__construct_dataset(sampling_mode, bern_flag, filter_flag, neg_ent, neg_rel)
 
