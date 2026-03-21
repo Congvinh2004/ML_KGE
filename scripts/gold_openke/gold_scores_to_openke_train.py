@@ -56,12 +56,35 @@ def main() -> None:
         action="store_true",
         help="If set, also keep lines with label 1 (usually not wanted for training).",
     )
+    ap.add_argument(
+        "--restrict_train_triples_txt",
+        default=None,
+        help="Optional. If set, only keep triples whose (h,r,t) strings appear in this file. "
+        "GOLD ConceptNet train.txt format: relation\\thead\\ttail (same as dataset/conceptnet/train.txt).",
+    )
     args = ap.parse_args()
 
     if not 0.0 <= args.drop_top_fraction < 1.0:
         raise ValueError("drop_top_fraction must be in [0, 1)")
 
     ent2id, rel2id = load_openke_maps(os.path.abspath(args.openke_dir))
+
+    allowed_hrt: set | None = None
+    if args.restrict_train_triples_txt:
+        allowed_hrt = set()
+        with open(args.restrict_train_triples_txt, "r", encoding="utf-8") as tf:
+            for line in tf:
+                line = line.strip()
+                if not line:
+                    continue
+                parts = line.split("\t")
+                if len(parts) != 3:
+                    raise ValueError(
+                        "restrict file: need 3 cols r\\th\\tt (ConceptNet): %r" % line
+                    )
+                r_s, h_s, t_s = parts[0].strip(), parts[1].strip(), parts[2].strip()
+                # Khớp cột TSV gold.py: h_str, r_str, t_str
+                allowed_hrt.add((h_s, r_s, t_s))
 
     rows: List[Tuple[int, str, str, str, float]] = []
     with open(args.gold_tsv, "r", encoding="utf-8") as f:
@@ -77,6 +100,8 @@ def main() -> None:
                 continue
             h_s, r_s, t_s = parts[3], parts[4], parts[5]
             score = float(parts[7])
+            if allowed_hrt is not None and (h_s, r_s, t_s) not in allowed_hrt:
+                continue
             rows.append((label, h_s, r_s, t_s, score))
 
     if not rows:
