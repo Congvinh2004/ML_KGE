@@ -132,6 +132,14 @@ class PyTorchTrainDataset(Dataset):
 		for h, t in self.r_of_ht:
 			self.r_of_ht[(h, t)] = np.array(list(set(self.r_of_ht[(h, t)])))
 		for r in range(self.rel_total):
+			# Một số relation có thể không còn triple trong train (vd. sau lọc GOLD)
+			# nhưng vẫn có trong relation2id — tránh KeyError.
+			if r not in self.h_of_r:
+				self.h_of_r[r] = np.array([], dtype=np.int64)
+				self.t_of_r[r] = np.array([], dtype=np.int64)
+				self.lef_mean[r] = 0.5
+				self.rig_mean[r] = 0.5
+				continue
 			self.h_of_r[r] = np.array(list(self.h_of_r[r].keys()))
 			self.t_of_r[r] = np.array(list(self.t_of_r[r].keys()))
 			self.lef_mean[r] = self.freqRel[r] / len(self.h_of_r[r])
