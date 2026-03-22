@@ -14,6 +14,7 @@ Ví dụ:
 from __future__ import annotations
 
 import argparse
+import datetime
 import os
 import sys
 
@@ -32,6 +33,11 @@ def main() -> None:
     ap.add_argument("--nbatches", type=int, default=200)
     ap.add_argument("--neg_ent", type=int, default=5)
     ap.add_argument("--ckpt_out", required=True, help="File .ckpt để lưu")
+    ap.add_argument(
+        "--metrics_out",
+        default=None,
+        help="Nếu set, ghi MRR/MR/Hits@k ra file .txt (link prediction)",
+    )
     ap.add_argument("--margin", type=float, default=6.0)
     ap.add_argument("--alpha", type=float, default=0.5)
     args = ap.parse_args()
@@ -99,7 +105,31 @@ def main() -> None:
 
     transe.load_checkpoint(ckpt_path)
     tester = Tester(model=transe, data_loader=test_dataloader, use_gpu=use_gpu)
-    tester.run_link_prediction(type_constrain=True)
+    mrr, mr, hit10, hit3, hit1 = tester.run_link_prediction(type_constrain=True)
+
+    if args.metrics_out:
+        lines = [
+            "TransE link prediction (filtered train, type_constrain=True)",
+            "time_utc: %s" % datetime.datetime.utcnow().isoformat() + "Z",
+            "openke_root: %s" % root,
+            "data_path: %s" % data_path,
+            "tri_file: %s" % tri_file,
+            "train_times: %d" % args.train_times,
+            "dim: %d  nbatches: %d  neg_ent: %d" % (args.dim, args.nbatches, args.neg_ent),
+            "ckpt: %s" % ckpt_path,
+            "",
+            "MRR\t%f" % mrr,
+            "MR\t%f" % mr,
+            "Hits@10\t%f" % hit10,
+            "Hits@3\t%f" % hit3,
+            "Hits@1\t%f" % hit1,
+            "",
+        ]
+        mp = os.path.abspath(args.metrics_out)
+        os.makedirs(os.path.dirname(mp) or ".", exist_ok=True)
+        with open(mp, "w", encoding="utf-8") as f:
+            f.write("\n".join(lines))
+        print("Wrote metrics:", mp)
 
 
 if __name__ == "__main__":
