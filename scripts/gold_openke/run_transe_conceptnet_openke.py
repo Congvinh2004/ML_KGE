@@ -14,9 +14,9 @@ Ví dụ:
 from __future__ import annotations
 
 import argparse
-import datetime
 import os
 import sys
+from datetime import datetime, timezone
 
 
 def main() -> None:
@@ -99,6 +99,13 @@ def main() -> None:
             raise
     _bs = train_dataloader.get_batch_size()
     _nt = train_dataloader.get_triple_tot()
+    if _nt < 1:
+        print(
+            "Lỗi: train2id không có triple nào (%s). Kiểm tra gold_scores_to_openke_train / lọc TSV."
+            % args.tri_file,
+            file=sys.stderr,
+        )
+        sys.exit(1)
     if _bs < 1:
         print(
             "Lỗi: batch_size=%s — --nbatches (%d) > số triples train (%d). Giảm --nbatches."
@@ -106,7 +113,9 @@ def main() -> None:
             file=sys.stderr,
         )
         sys.exit(1)
-    test_dataloader = TestDataLoader(data_path, "link")
+    # ConceptNet export không có type_constrain.txt (FB15K237). Bật type_constrain=True
+    # khiến Base.so gọi importTypeFiles() với fopen NULL → crash (SIGSEGV, exit -11).
+    test_dataloader = TestDataLoader(data_path, "link", type_constrain=False)
 
     transe = TransE(
         ent_tot=train_dataloader.get_ent_tot(),
@@ -137,12 +146,13 @@ def main() -> None:
 
     transe.load_checkpoint(ckpt_path)
     tester = Tester(model=transe, data_loader=test_dataloader, use_gpu=use_gpu)
-    mrr, mr, hit10, hit3, hit1 = tester.run_link_prediction(type_constrain=True)
+    mrr, mr, hit10, hit3, hit1 = tester.run_link_prediction(type_constrain=False)
 
     if args.metrics_out:
         lines = [
-            "TransE link prediction (filtered train, type_constrain=True)",
-            "time_utc: %s" % datetime.datetime.utcnow().isoformat() + "Z",
+            "TransE link prediction (filtered train, type_constrain=False; ConceptNet không có type_constrain.txt)",
+            "time_utc: %s"
+            % datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
             "openke_root: %s" % root,
             "data_path: %s" % data_path,
             "tri_file: %s" % tri_file,

@@ -136,6 +136,12 @@ def main() -> None:
         h, t, r = ent2id[h_s], ent2id[t_s], rel2id[r_s]
         triples_out.append((h, t, r))
 
+    if not triples_out:
+        raise RuntimeError(
+            "train2id sau lọc rỗng (không còn triple). Kiểm tra TSV, drop_top_fraction, "
+            "restrict_train_triples_txt, và cảnh báo missing entity/relation ở trên."
+        )
+
     out_path = os.path.abspath(args.out_train2id)
     os.makedirs(os.path.dirname(out_path) or ".", exist_ok=True)
     with open(out_path, "w", encoding="utf-8") as f:
