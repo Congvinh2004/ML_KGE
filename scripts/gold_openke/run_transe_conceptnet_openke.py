@@ -15,6 +15,7 @@ from __future__ import annotations
 
 import argparse
 import datetime
+import inspect
 import os
 import sys
 
@@ -40,7 +41,23 @@ def main() -> None:
     )
     ap.add_argument("--margin", type=float, default=6.0)
     ap.add_argument("--alpha", type=float, default=0.5)
+    ap.add_argument(
+        "--pin_memory",
+        action="store_true",
+        help="Bật pin_memory cho DataLoader (mặc định tắt — giảm RAM trên Kaggle / ConceptNet lớn).",
+    )
+    ap.add_argument(
+        "--use_cpu",
+        action="store_true",
+        help="Ép huấn luyện + eval trên CPU (chậm nhưng tránh OOM GPU).",
+    )
     args = ap.parse_args()
+
+    # Giảm phân mảnh VRAM (PyTorch 2.x); an toàn nếu biến không được hỗ trợ.
+    os.environ.setdefault("PYTORCH_CUDA_ALLOC_CONF", "expandable_segments:True")
+
+    if args.use_cpu:
+        os.environ["CUDA_VISIBLE_DEVICES"] = ""
 
     root = os.path.abspath(args.openke_root)
     os.chdir(root)
@@ -63,7 +80,7 @@ def main() -> None:
     if use_gpu:
         torch.cuda.empty_cache()
 
-    train_dataloader = PyTorchTrainDataLoader(
+    _dl_kw = dict(
         in_path=data_path,
         tri_file=tri_file,
         nbatches=args.nbatches,
@@ -74,6 +91,19 @@ def main() -> None:
         neg_ent=args.neg_ent,
         neg_rel=0,
     )
+    # Repo cũ chưa có tham số pin_memory → bỏ qua (mặc định OpenKE = True).
+    if "pin_memory" in inspect.signature(PyTorchTrainDataLoader.__init__).parameters:
+        _dl_kw["pin_memory"] = args.pin_memory
+    train_dataloader = PyTorchTrainDataLoader(**_dl_kw)
+    _bs = train_dataloader.get_batch_size()
+    _nt = train_dataloader.get_triple_tot()
+    if _bs < 1:
+        print(
+            "Lỗi: batch_size=%s — --nbatches (%d) > số triples train (%d). Giảm --nbatches."
+            % (_bs, args.nbatches, _nt),
+            file=sys.stderr,
+        )
+        sys.exit(1)
     test_dataloader = TestDataLoader(data_path, "link")
 
     transe = TransE(

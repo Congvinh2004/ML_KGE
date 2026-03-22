@@ -268,7 +268,8 @@ class PyTorchTrainDataLoader(DataLoader):
 		neg_ent = 1, 
 		neg_rel = 0, 
 		shuffle = True, 
-		drop_last = True):
+		drop_last = True,
+		pin_memory = True):
 
 		self.in_path = in_path
 		self.tri_file = tri_file
@@ -295,7 +296,7 @@ class PyTorchTrainDataLoader(DataLoader):
 			dataset = dataset,
 			batch_size = self.batch_size,
 			shuffle = shuffle,
-			pin_memory = True,
+			pin_memory = pin_memory,
 			num_workers = threads,
 			collate_fn = dataset.collate_fn,
 			drop_last = drop_last)
