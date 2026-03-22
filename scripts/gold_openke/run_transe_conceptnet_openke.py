@@ -15,12 +15,12 @@ from __future__ import annotations
 
 import argparse
 import datetime
-import inspect
 import os
 import sys
 
 
 def main() -> None:
+    print("run_transe_conceptnet_openke: start", flush=True)
     ap = argparse.ArgumentParser()
     ap.add_argument("--openke_root", required=True, help="Repo OpenKE (gốc có thư mục openke/)")
     ap.add_argument(
@@ -52,9 +52,7 @@ def main() -> None:
         help="Ép huấn luyện + eval trên CPU (chậm nhưng tránh OOM GPU).",
     )
     args = ap.parse_args()
-
-    # Giảm phân mảnh VRAM (PyTorch 2.x); an toàn nếu biến không được hỗ trợ.
-    os.environ.setdefault("PYTORCH_CUDA_ALLOC_CONF", "expandable_segments:True")
+    print("run_transe_conceptnet_openke: args OK", flush=True)
 
     if args.use_cpu:
         os.environ["CUDA_VISIBLE_DEVICES"] = ""
@@ -91,10 +89,14 @@ def main() -> None:
         neg_ent=args.neg_ent,
         neg_rel=0,
     )
-    # Repo cũ chưa có tham số pin_memory → bỏ qua (mặc định OpenKE = True).
-    if "pin_memory" in inspect.signature(PyTorchTrainDataLoader.__init__).parameters:
-        _dl_kw["pin_memory"] = args.pin_memory
-    train_dataloader = PyTorchTrainDataLoader(**_dl_kw)
+    # Repo cũ không có pin_memory → TypeError → gọi lại không truyền pin_memory.
+    try:
+        train_dataloader = PyTorchTrainDataLoader(**_dl_kw, pin_memory=args.pin_memory)
+    except TypeError as e:
+        if "pin_memory" in str(e):
+            train_dataloader = PyTorchTrainDataLoader(**_dl_kw)
+        else:
+            raise
     _bs = train_dataloader.get_batch_size()
     _nt = train_dataloader.get_triple_tot()
     if _bs < 1:
@@ -163,4 +165,15 @@ def main() -> None:
 
 
 if __name__ == "__main__":
-    main()
+    # In ra stderr ngay (không buffer) — nếu log không có dòng này, tiến trình chết trước khi chạy Python hoặc repo clone chưa đúng bản.
+    sys.stderr.write("run_transe_conceptnet_openke: boot (stderr)\n")
+    sys.stderr.flush()
+    try:
+        main()
+    except BaseException:
+        import traceback
+
+        traceback.print_exc()
+        sys.stderr.flush()
+        sys.stdout.flush()
+        sys.exit(1)
