@@ -17,7 +17,19 @@ from __future__ import annotations
 
 import argparse
 import os
-from typing import Dict, List, Tuple
+from typing import Dict, List, Optional, Tuple
+
+
+def read_openke_train2id_count(train2id_path: str) -> Optional[int]:
+    """Dòng 1 định dạng OpenKE train2id: số triple."""
+    if not os.path.isfile(train2id_path):
+        return None
+    with open(train2id_path, "r", encoding="utf-8") as f:
+        first = f.readline().strip()
+    try:
+        return int(first)
+    except ValueError:
+        return None
 
 
 def load_openke_maps(
@@ -87,20 +99,26 @@ def main() -> None:
                 allowed_hrt.add((h_s, r_s, t_s))
 
     rows: List[Tuple[int, str, str, str, float]] = []
+    tsv_nonempty_lines = 0
+    tsv_skipped_label_nonzero = 0
+    tsv_skipped_restrict = 0
     with open(args.gold_tsv, "r", encoding="utf-8") as f:
         for line in f:
             line = line.strip()
             if not line:
                 continue
+            tsv_nonempty_lines += 1
             parts = line.split("\t")
             if len(parts) < 8:
                 raise ValueError("Bad TSV line (need 8 cols): %r" % line)
             label = int(parts[6])
             if label != 0 and not args.include_labeled_noise:
+                tsv_skipped_label_nonzero += 1
                 continue
             h_s, r_s, t_s = parts[3], parts[4], parts[5]
             score = float(parts[7])
             if allowed_hrt is not None and (h_s, r_s, t_s) not in allowed_hrt:
+                tsv_skipped_restrict += 1
                 continue
             rows.append((label, h_s, r_s, t_s, score))
 
@@ -149,11 +167,54 @@ def main() -> None:
         for h, t, r in triples_out:
             f.write("%d %d %d\n" % (h, t, r))
 
+    openke_dir_abs = os.path.abspath(args.openke_dir)
+    train2id_path = os.path.join(openke_dir_abs, "train2id.txt")
+    n_openke_train = read_openke_train2id_count(train2id_path)
+    n_final = len(triples_out)
+    n_rows_label0 = len(rows)
+    kept_after_score = len(kept)
+
     print("✅ Wrote", out_path)
-    print("   kept triples:", len(triples_out))
-    print("   dropped (score > %.6f):" % threshold, dropped)
-    if missing:
-        print("   ⚠️  skipped (missing in entity2id/relation2id):", missing)
+    print("")
+    print("=== Thống kê gold_scores_to_openke_train ===")
+    print("openke_dir:", openke_dir_abs)
+    print("gold_tsv:", os.path.abspath(args.gold_tsv))
+    print("drop_top_fraction:", args.drop_top_fraction)
+    if n_openke_train is not None:
+        print("Số triple train gốc (train2id.txt, dòng 1):", n_openke_train)
+    else:
+        print("Số triple train gốc (train2id.txt): N/A (không đọc được file)")
+    print("--- Đọc TSV ---")
+    print("  Dòng TSV không rỗng:", tsv_nonempty_lines)
+    print("  Bỏ qua (label != 0, không include_labeled_noise):", tsv_skipped_label_nonzero)
+    if allowed_hrt is not None:
+        print("  Bỏ qua (không thuộc restrict_train_triples_txt):", tsv_skipped_restrict)
+    print("  Số triple (label 0) đưa vào bước lọc theo score:", n_rows_label0)
+    print("--- Lọc theo score (GOLD) ---")
+    if args.drop_top_fraction <= 0:
+        print("  Không lọc theo score (drop_top_fraction <= 0).")
+    else:
+        print("  Ngưỡng score (giữ score <= threshold):", threshold)
+    print("  Loại vì score cao (dropped):", dropped)
+    print("  Còn lại sau lọc score (chuỗi h,r,t):", kept_after_score)
+    print("--- Ánh xạ sang id OpenKE ---")
+    print("  Bỏ vì thiếu entity/relation trong map (missing):", missing)
+    print("  Số triple ghi vào train2id output:", n_final)
+    if n_openke_train is not None:
+        removed_vs_orig = n_openke_train - n_final
+        pct = (100.0 * removed_vs_orig / n_openke_train) if n_openke_train else 0.0
+        print("--- So với train2id.txt gốc ---")
+        if n_rows_label0 != n_openke_train:
+            print(
+                "  Lưu ý: |TSV label-0| = %d khác |train2id.txt| = %d — "
+                "chênh tổng dưới đây phụ thuộc pipeline GOLD (valid/test trong TSV, v.v.)."
+                % (n_rows_label0, n_openke_train)
+            )
+        print("  Đã không đưa vào file train sạch (tổng cộng):", removed_vs_orig)
+        print("  (gồm: không có trong TSV label-0, bị drop score, missing map, v.v.)")
+        print("  Tỷ lệ so với train gốc: %.4f%%" % pct)
+    print("=== Hết thống kê ===")
+    print("")
 
 
 if __name__ == "__main__":

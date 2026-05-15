@@ -93,13 +93,23 @@ train_dataloader = PyTorchTrainDataLoader(
 
 ## 6. Chạy toàn pipeline trên Kaggle
 
-**Notebook từng cell (upload lên Kaggle hoặc chạy local):** [`kaggle_gold_openke_pipeline.ipynb`](kaggle_gold_openke_pipeline.ipynb).
+**Khuyến nghị — copy từng ô từ Markdown (dễ chỉnh, không cần upload `.ipynb`):**
 
-Ý tưởng: một notebook GPU, thư mục làm việc `/kaggle/working`; dữ liệu có thể clone hoặc gắn **Kaggle Dataset** (zip chứa `OpenKE-OpenKE-PyTorch` + `GOLD-main` + thư mục `FB15K237` chuẩn OpenKE).
+| Pipeline | File copy-paste |
+|----------|-----------------|
+| FB15K237 + GOLD + TransE | [`kaggle_gold_openke_pipeline.md`](kaggle_gold_openke_pipeline.md) |
+| WN18RR + GOLD + TransE | [`kaggle_wn18rr_gold_openke_pipeline.md`](kaggle_wn18rr_gold_openke_pipeline.md) |
+| ConceptNet + GOLD + OpenKE | [`kaggle_conceptnet_gold_openke_pipeline.md`](kaggle_conceptnet_gold_openke_pipeline.md) |
+
+Mỗi `.md` chỉ gồm các khối **Cell 1 — code**, **Cell 2 — code**, … (bỏ ô Markdown trong notebook). Nếu bạn vẫn dùng notebook `.ipynb` riêng, có thể đồng bộ sang `.md` bằng: `python scripts/gold_openke/_ipynb_to_md.py <đường_dẫn_notebook.ipynb>`.
+
+**Lưu ý:** repo **không kèm** file `.ipynb`; trên Kaggle hãy tạo notebook mới rồi copy từng cell từ các file `.md` ở bảng trên. Pipeline chỉ GOLD trên ConceptNet (không train OpenKE) nằm trong repo GOLD (`gold.py` + `dataset/conceptnet/`), không duy trì file pipeline tách trong thư mục này.
+
+Ý tưởng: một notebook GPU, thư mục làm việc `/kaggle/working`; dữ liệu có thể clone hoặc gắn **Kaggle Dataset** (zip chứa `OpenKE-OpenKE-PyTorch` + `GOLD-main` + benchmark OpenKE, ví dụ `FB15K237` hoặc `WN18RR`).
 
 ### Bước A — Chuẩn bị
 
-1. Tạo notebook, bật **GPU**, bật **Internet** (cài package + tải SentenceTransformer lần đầu).
+1. Tạo notebook, bật **GPU** (khuyến nghị **T4**; torch CUDA mặc định trên Kaggle), bật **Internet** (cài package + tải SentenceTransformer lần đầu). Các file `kaggle_*_pipeline.md` chỉ cài lại **torch + CUDA** nếu import lỗi (tránh wheel CPU-only làm mất GPU).
 2. Gắn input (ví dụ `/kaggle/input/your-bundle/`) hoặc `git clone` hai repo của bạn lên GitHub rồi clone vào `working`.
 
 ### Bước B — Export OpenKE → GOLD
