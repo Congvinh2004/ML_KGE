@@ -268,6 +268,7 @@ _filter_cmd = [
     "--out_train2id", clean_train,
     "--drop_top_fraction", str(DROP_TOP),
     "--restrict_train_triples_txt", train_txt_for_restrict,
+    "--restrict_triple_format", "rht",
 ]
 print("$", " ".join(_filter_cmd))
 _rf = subprocess.run(_filter_cmd, capture_output=True, text=True)

@@ -70,6 +70,8 @@ python scripts/gold_openke/gold_scores_to_openke_train.py ^
 ```
 
 - `--drop_top_fraction 0.05`: bỏ **5%** triple có **điểm (loss) cao nhất** (GOLD coi là khả năng nhiễu cao hơn).
+- **WN18RR / OpenKE:** thêm `--restrict_train_triples_txt gold_data/.../train.txt` và `--restrict_triple_format hrt` để chỉ lọc split train (GOLD TSV gồm cả valid/test nếu không restrict).
+- **ConceptNet:** `--restrict_triple_format rht` (file `train.txt` dạng `relation\\thead\\ttail`).
 
 ## 5. Huấn luyện OpenKE
 

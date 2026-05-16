@@ -71,8 +71,15 @@ def main() -> None:
     ap.add_argument(
         "--restrict_train_triples_txt",
         default=None,
-        help="Optional. If set, only keep triples whose (h,r,t) strings appear in this file. "
-        "GOLD ConceptNet train.txt format: relation\\thead\\ttail (same as dataset/conceptnet/train.txt).",
+        help="Optional. If set, only keep triples whose (h,r,t) strings appear in this file "
+        "(train split only — avoids valid/test leakage into OpenKE train).",
+    )
+    ap.add_argument(
+        "--restrict_triple_format",
+        choices=("hrt", "rht"),
+        default="hrt",
+        help="Column order in restrict file: hrt=head\\trelation\\ttail (openke_to_gold / WN18RR); "
+        "rht=relation\\thead\\ttail (ConceptNet).",
     )
     args = ap.parse_args()
 
@@ -82,6 +89,7 @@ def main() -> None:
     ent2id, rel2id = load_openke_maps(os.path.abspath(args.openke_dir))
 
     allowed_hrt: set | None = None
+    n_restrict_file = 0
     if args.restrict_train_triples_txt:
         allowed_hrt = set()
         with open(args.restrict_train_triples_txt, "r", encoding="utf-8") as tf:
@@ -91,12 +99,21 @@ def main() -> None:
                     continue
                 parts = line.split("\t")
                 if len(parts) != 3:
-                    raise ValueError(
-                        "restrict file: need 3 cols r\\th\\tt (ConceptNet): %r" % line
+                    raise ValueError("restrict file: need 3 tab-separated cols: %r" % line)
+                if args.restrict_triple_format == "hrt":
+                    h_s, r_s, t_s = (
+                        parts[0].strip(),
+                        parts[1].strip(),
+                        parts[2].strip(),
                     )
-                r_s, h_s, t_s = parts[0].strip(), parts[1].strip(), parts[2].strip()
-                # Khớp cột TSV gold.py: h_str, r_str, t_str
+                else:
+                    r_s, h_s, t_s = (
+                        parts[0].strip(),
+                        parts[1].strip(),
+                        parts[2].strip(),
+                    )
                 allowed_hrt.add((h_s, r_s, t_s))
+                n_restrict_file += 1
 
     rows: List[Tuple[int, str, str, str, float]] = []
     tsv_nonempty_lines = 0
@@ -180,6 +197,13 @@ def main() -> None:
     print("openke_dir:", openke_dir_abs)
     print("gold_tsv:", os.path.abspath(args.gold_tsv))
     print("drop_top_fraction:", args.drop_top_fraction)
+    if args.restrict_train_triples_txt:
+        print(
+            "restrict_train_triples_txt:",
+            os.path.abspath(args.restrict_train_triples_txt),
+        )
+        print("restrict_triple_format:", args.restrict_triple_format)
+        print("  Số dòng trong file restrict (train only):", n_restrict_file)
     if n_openke_train is not None:
         print("Số triple train gốc (train2id.txt, dòng 1):", n_openke_train)
     else:
@@ -204,11 +228,22 @@ def main() -> None:
         removed_vs_orig = n_openke_train - n_final
         pct = (100.0 * removed_vs_orig / n_openke_train) if n_openke_train else 0.0
         print("--- So với train2id.txt gốc ---")
-        if n_rows_label0 != n_openke_train:
+        if allowed_hrt is not None and n_rows_label0 != n_openke_train:
+            print(
+                "  Lưu ý: |TSV label-0 sau restrict| = %d khác |train2id.txt| = %d — "
+                "kiểm tra train.txt / TSV thiếu triple train."
+                % (n_rows_label0, n_openke_train)
+            )
+        elif allowed_hrt is None and n_rows_label0 != n_openke_train:
             print(
                 "  Lưu ý: |TSV label-0| = %d khác |train2id.txt| = %d — "
-                "chênh tổng dưới đây phụ thuộc pipeline GOLD (valid/test trong TSV, v.v.)."
+                "dùng --restrict_train_triples_txt (train.txt) để chỉ lọc split train."
                 % (n_rows_label0, n_openke_train)
+            )
+        elif allowed_hrt is not None:
+            print(
+                "  Chế độ train-only: lọc score trên %d triple train (không valid/test)."
+                % n_rows_label0
             )
         print("  Đã không đưa vào file train sạch (tổng cộng):", removed_vs_orig)
         print("  (gồm: không có trong TSV label-0, bị drop score, missing map, v.v.)")

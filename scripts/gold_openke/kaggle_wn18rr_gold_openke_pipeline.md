@@ -413,11 +413,18 @@ print("TSV:", gold_tsv)
 
 ## Cell 6 — code (lọc train + thống kê triple)
 
+Chỉ giữ triple thuộc **`GOLD_LAYOUT/train.txt`** (split train OpenKE), rồi bỏ top `DROP_TOP_FRACTION` theo score GOLD — tránh lẫn valid/test vào `train2id_gold_clean.txt`.
+
 In ra log chi tiết (từ `gold_scores_to_openke_train.py`) và ghi thêm **`OPENKE_DATA/gold_train_filter_stats.txt`** để lưu cùng artifact (Cell 9 zip).
 
 ```python
+DROP_TOP_FRACTION = 0.05  # 0.04 nếu muốn khớp lần chạy trước
+
 clean_train = os.path.join(OPENKE_DATA, "train2id_gold_clean.txt")
 GOLD_TRAIN_FILTER_STATS = os.path.join(OPENKE_DATA, "gold_train_filter_stats.txt")
+gold_train_txt = os.path.join(GOLD_LAYOUT, "train.txt")
+assert os.path.isfile(gold_train_txt), "Thiếu train.txt GOLD: %s (chạy Cell 3)" % gold_train_txt
+print("Restrict lọc train-only:", gold_train_txt)
 
 _filter_cmd = [
     sys.executable,
@@ -425,7 +432,9 @@ _filter_cmd = [
     "--gold_tsv", gold_tsv,
     "--openke_dir", OPENKE_DATA,
     "--out_train2id", clean_train,
-    "--drop_top_fraction", "0.05",
+    "--drop_top_fraction", str(DROP_TOP_FRACTION),
+    "--restrict_train_triples_txt", gold_train_txt,
+    "--restrict_triple_format", "hrt",
 ]
 print("$", " ".join(_filter_cmd))
 _rf = subprocess.run(_filter_cmd, capture_output=True, text=True)
@@ -451,10 +460,18 @@ def _read_train2id_n(path):
 _n_orig = _read_train2id_n(os.path.join(OPENKE_DATA, "train2id.txt"))
 _n_clean = _read_train2id_n(clean_train)
 if _n_orig is not None and _n_clean is not None:
+    _removed = _n_orig - _n_clean
     print(
-        "Tóm tắt nhanh (dòng 1 train2id): train gốc = %d | train sau GOLD = %d | không vào file sạch = %d"
-        % (_n_orig, _n_clean, _n_orig - _n_clean)
+        "Tóm tắt nhanh (dòng 1 train2id): train gốc = %d | train sau GOLD (train-only) = %d | đã loại = %d (%.2f%%)"
+        % (_n_orig, _n_clean, _removed, 100.0 * _removed / _n_orig if _n_orig else 0.0)
     )
+    if _n_clean > _n_orig:
+        raise RuntimeError(
+            "train2id_gold_clean (%d) > train gốc (%d) — kiểm tra restrict train.txt / restrict_triple_format hrt"
+            % (_n_clean, _n_orig)
+        )
+    if _n_clean == _n_orig:
+        print("⚠️  Cảnh báo: số triple sau lọc bằng train gốc — có thể restrict hoặc drop_top_fraction không có hiệu lực.")
 
 assert os.path.isfile(clean_train), "Không thấy file train đã lọc"
 print("Clean train:", clean_train)
